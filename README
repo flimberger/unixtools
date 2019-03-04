@@ -1,0 +1,8 @@
+Unix Utilities
+==============
+
+Some simple unix utilities, modeled after those in `The UNIX Programming
+Environment' by Brian W. Kernighan and Rob Pike.
+
+The original code is K&R style from the 80s, this code is modernized to a
+current C standard.
