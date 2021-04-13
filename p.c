@@ -25,11 +25,14 @@ main(int argc, char *argv[])
 		argc--;
 		argv++;
 	}
-	for (i = 1; i < argc; i++) {
-		fp = efopen(argv[i], "r");
-		print(fp, pagesize);
-		fclose(fp);
-	}
+	if (argc == 1)
+		print(stdin, pagesize);
+	else
+		for (i = 1; i < argc; i++) {
+			fp = efopen(argv[i], "r");
+			print(fp, pagesize);
+			fclose(fp);
+		}
 	exit(0);
 }
 
