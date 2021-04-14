@@ -18,13 +18,18 @@ main(int argc, char *argv[])
 {
 	int	 i, pagesize = PAGESIZE;
 	FILE	*fp;
+	char	*p;
 
 	progname = argv[0];
+	if ((p = getenv("PAGESIZE")) != NULL)
+		pagesize = atoi(p);
 	if (argc > 1 && argv[1][0] == '-') {
 		pagesize = atoi(&argv[1][1]);
 		argc--;
 		argv++;
 	}
+	if (pagesize == 0)
+		pagesize = PAGESIZE;
 	if (argc == 1)
 		print(stdin, pagesize);
 	else
