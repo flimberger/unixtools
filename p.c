@@ -1,11 +1,20 @@
 /* p:	print input in chunks */
 
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/wait.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <signal.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
 
 #define BUFSIZE		4096
 #define PAGESIZE	22
+
+typedef void	(*Sighandler)(int);
 
 static const char	*progname;
 
@@ -73,17 +82,74 @@ print(FILE *fp, int pagesize)
 		}
 }
 
+static void
+xdup(int fd)
+{
+	int	s;
+
+	s = dup(fd);
+	if (s < 0) {
+		fprintf(stderr, "dup: %s\n", strerror(errno));
+		exit(1);
+	}
+}
+
+static int
+xsystem(const char *s)
+{
+	Sighandler	ihf, qhf;
+	int		status, pid, w, tty;
+
+	fflush(stdout);
+	tty = open("/dev/tty", O_RDWR);
+	if (tty == -1) {
+		fprintf(stderr, "%s: cannot open /dev/tty: %s\n", progname, strerror(errno));
+		return -1;
+	}
+	pid = fork();
+	if ((pid = fork()) == 0) {
+		close(0);	xdup(tty);
+		close(1);	xdup(tty);
+		close(2);	xdup(tty);
+		close(tty);
+		execlp("sh", "sh", "-c", s, NULL);
+		exit(127);
+	}
+	close(tty);
+	if (pid == -1)
+		return -1;
+	ihf = signal(SIGINT, SIG_IGN);
+	qhf = signal(SIGQUIT, SIG_IGN);
+	while ((w = wait(&status)) != pid && w != -1)
+		;
+	if (w == -1)
+		status = -1;
+	signal(SIGQUIT, qhf);
+	signal(SIGINT, ihf);
+
+	return status;
+}
+
 /* process response from /dev/tty */
 char
 ttyin()
 {
 	static FILE	*tty = NULL;
-	char	buf[BUFSIZE];
+	int		 res;
+	char		 buf[BUFSIZE];
 
 	if (tty == NULL)
 		tty = efopen("/dev/tty", "r");
-	if (fgets(buf, BUFSIZE, tty) == NULL || buf[0] == 'q')
-		exit(0);
-	else
-		return buf[0];
+	for (;;) {
+		if (fgets(buf, BUFSIZE, tty) == NULL || buf[0] == 'q')
+			exit(0);
+		else if (buf[0] == '!') {
+			res = xsystem(buf + 1);
+			if (res != 0)
+				printf("(%d)!\n", res);
+			else
+				printf("!\n");
+		} else
+			return buf[0];
+	}
 }
